@@ -442,7 +442,6 @@ st.markdown(
 )
 
 
-# 영화별 일관객 합계와 10위권에 든 날 수 계산
 movie_summary = (
     df.groupby("영화명")
     .agg(
@@ -453,7 +452,6 @@ movie_summary = (
 )
 
 
-# 일관객 합계 기준 TOP 10
 top10_movies = (
     movie_summary
     .sort_values(
@@ -465,14 +463,12 @@ top10_movies = (
 )
 
 
-# 관객이 많은 영화가 위에 오도록 역순 정렬
 top10_movies = top10_movies.sort_values(
     "일관객합계",
     ascending=True
 )
 
 
-# 가로 막대그래프
 fig4 = px.bar(
     top10_movies,
     x="일관객합계",
@@ -492,7 +488,6 @@ fig4.update_traces(
     texttemplate="%{x:,}명",
     textposition="outside",
     cliponaxis=False,
-
     hovertemplate=(
         "<b>%{y}</b><br>"
         "<b>일관객 합계</b>: %{x:,}명<br>"
@@ -578,10 +573,6 @@ st.markdown(
 )
 
 
-# --------------------------------------------------
-# 월과 요일 추출
-# --------------------------------------------------
-
 heatmap_df = df.copy()
 
 heatmap_df["월"] = heatmap_df["날짜"].dt.month
@@ -605,10 +596,7 @@ heatmap_df["요일"] = (
 )
 
 
-# --------------------------------------------------
-# 먼저 날짜별 10위권 일관객 합계 계산
-# --------------------------------------------------
-
+# 날짜별 10위권 일관객 합계
 daily_heatmap = (
     heatmap_df
     .groupby(
@@ -619,10 +607,7 @@ daily_heatmap = (
 )
 
 
-# --------------------------------------------------
-# 월 × 요일별 하루 평균 계산
-# --------------------------------------------------
-
+# 월 × 요일별 하루 평균
 heatmap_data = (
     daily_heatmap
     .groupby(
@@ -632,10 +617,6 @@ heatmap_data = (
     .mean()
 )
 
-
-# --------------------------------------------------
-# 요일 순서 지정
-# --------------------------------------------------
 
 weekday_order = [
     "월요일",
@@ -659,10 +640,6 @@ heatmap_data = heatmap_data.sort_values(
     ["월", "요일"]
 )
 
-
-# --------------------------------------------------
-# 히트맵
-# --------------------------------------------------
 
 fig5 = px.density_heatmap(
     heatmap_data,
@@ -720,10 +697,6 @@ st.plotly_chart(
 )
 
 
-# --------------------------------------------------
-# 그래프로 알 수 있는 것
-# --------------------------------------------------
-
 st.markdown("### 💡 이 그래프로 알 수 있는 것")
 
 st.info(
@@ -734,12 +707,206 @@ st.info(
 
 # ==================================================
 # 그래프 6
+# 스크린당 관객 수 TOP 10
+# ==================================================
+
+st.divider()
+
+st.header("6. 스크린당 관객 수 TOP 10")
+
+st.markdown(
+    "영화별로 하루 일관객을 해당 날짜의 스크린 수로 나누어 "
+    "스크린당 관객 수를 계산하고, 기간 내 평균이 높은 영화 TOP 10을 비교합니다."
+)
+
+
+# --------------------------------------------------
+# 스크린당 관객 수 계산
+# --------------------------------------------------
+
+screen_efficiency_df = df.copy()
+
+screen_efficiency_df = screen_efficiency_df[
+    screen_efficiency_df["스크린수"] > 0
+].copy()
+
+
+screen_efficiency_df["스크린당관객"] = (
+    screen_efficiency_df["일관객"]
+    / screen_efficiency_df["스크린수"]
+)
+
+
+# --------------------------------------------------
+# 영화별 평균 스크린당 관객 수 계산
+# --------------------------------------------------
+
+screen_summary = (
+    screen_efficiency_df
+    .groupby("영화명")
+    .agg(
+        평균스크린당관객=("스크린당관객", "mean"),
+        일수=("날짜", "nunique"),
+        평균스크린수=("스크린수", "mean"),
+        일관객합계=("일관객", "sum")
+    )
+    .reset_index()
+)
+
+
+# --------------------------------------------------
+# 평균 스크린당 관객 수 TOP 10
+# --------------------------------------------------
+
+top10_efficiency = (
+    screen_summary
+    .sort_values(
+        "평균스크린당관객",
+        ascending=False
+    )
+    .head(10)
+    .copy()
+)
+
+
+# 그래프에서는 높은 값이 위에 오도록 역순 정렬
+top10_efficiency = (
+    top10_efficiency
+    .sort_values(
+        "평균스크린당관객",
+        ascending=True
+    )
+)
+
+
+# --------------------------------------------------
+# 가로 막대그래프
+# --------------------------------------------------
+
+fig6 = px.bar(
+    top10_efficiency,
+    x="평균스크린당관객",
+    y="영화명",
+    orientation="h",
+    text="평균스크린당관객",
+    title="영화별 평균 스크린당 관객 수 TOP 10",
+    labels={
+        "영화명": "영화",
+        "평균스크린당관객": "평균 스크린당 관객 수"
+    },
+    custom_data=[
+        "일수",
+        "평균스크린수",
+        "일관객합계"
+    ]
+)
+
+
+fig6.update_traces(
+    texttemplate="%{x:.1f}명",
+    textposition="outside",
+    cliponaxis=False,
+
+    hovertemplate=(
+        "<b>%{y}</b><br>"
+        "<b>평균 스크린당 관객</b>: %{x:.1f}명<br>"
+        "<b>10위권에 든 날</b>: %{customdata[0]}일<br>"
+        "<b>평균 스크린 수</b>: %{customdata[1]:,.0f}개<br>"
+        "<b>기간 내 일관객 합계</b>: %{customdata[2]:,}명"
+        "<extra></extra>"
+    )
+)
+
+
+fig6.update_layout(
+    height=600,
+    xaxis_title="평균 스크린당 관객 수(명)",
+    yaxis_title="영화",
+    margin=dict(
+        l=20,
+        r=130,
+        t=60,
+        b=20
+    )
+)
+
+
+st.plotly_chart(
+    fig6,
+    use_container_width=True
+)
+
+
+# --------------------------------------------------
+# 그래프로 알 수 있는 것
+# --------------------------------------------------
+
+st.markdown("### 💡 이 그래프로 알 수 있는 것")
+
+st.info(
+    "스크린 수가 많은 영화가 반드시 효율이 높은 것은 아니며, "
+    "한 스크린에서 얼마나 많은 관객을 확보했는지를 비교할 수 있습니다."
+)
+
+
+# --------------------------------------------------
+# TOP 10 상세 정보
+# --------------------------------------------------
+
+with st.expander("📊 TOP 10 영화의 스크린당 관객 상세 정보 보기"):
+
+    efficiency_table = (
+        top10_efficiency
+        .sort_values(
+            "평균스크린당관객",
+            ascending=False
+        )
+        .copy()
+    )
+
+    efficiency_table["평균스크린당관객"] = (
+        efficiency_table["평균스크린당관객"]
+        .map(lambda x: f"{x:.1f}명")
+    )
+
+    efficiency_table["평균스크린수"] = (
+        efficiency_table["평균스크린수"]
+        .map(lambda x: f"{x:,.0f}개")
+    )
+
+    efficiency_table["일관객합계"] = (
+        efficiency_table["일관객합계"]
+        .map(lambda x: f"{x:,}명")
+    )
+
+    efficiency_table["일수"] = (
+        efficiency_table["일수"]
+        .map(lambda x: f"{x}일")
+    )
+
+    efficiency_table.columns = [
+        "영화명",
+        "평균 스크린당 관객",
+        "10위권에 든 날",
+        "평균 스크린 수",
+        "기간 내 일관객 합계"
+    ]
+
+    st.dataframe(
+        efficiency_table,
+        use_container_width=True,
+        hide_index=True
+    )
+
+
+# ==================================================
+# 그래프 7
 # 추가 예정
 # ==================================================
 
 st.divider()
 
-st.header("6. 추가 그래프")
+st.header("7. 추가 그래프")
 
 st.caption(
     "앞으로 새로운 영화 데이터 그래프를 이곳에 추가할 예정입니다."
@@ -749,7 +916,7 @@ st.markdown(
     """
     📌 **다음 그래프를 추가할 공간입니다.**
 
-    예: 누적관객 변화 / 스크린 수 변화 / 상영횟수 변화 / 순위 변화
+    예: 누적관객 변화 / 상영횟수와 일관객의 관계 / 순위 변화
     """
 )
 
